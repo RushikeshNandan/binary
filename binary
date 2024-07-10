@@ -1,0 +1,120 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <cstdint>
+#include <bitset>
+
+// Binary Quantization
+void binaryQuantize(const std::vector<float>& input, std::vector<uint32_t>& output) {
+    size_t n = input.size();
+    output.resize((n + 31) / 32); // Each uint32_t holds 32 bits
+    for (size_t i = 0; i < n; ++i) {
+        size_t index = i / 32;
+        size_t bitPos = i % 32;
+        if (input[i] >= 0.5) {
+            output[index] |= (1 << bitPos);
+        }
+    }
+}
+
+float cosineSimilarityBinary(const std::vector<uint32_t>& A, const std::vector<uint32_t>& B, size_t n) {
+    uint32_t dotProduct = 0;
+    uint32_t normA = 0;
+    uint32_t normB = 0;
+
+    for (size_t i = 0; i < A.size(); ++i) {
+        dotProduct += __builtin_popcount(A[i] & B[i]);
+        normA += __builtin_popcount(A[i]);
+        normB += __builtin_popcount(B[i]);
+    }
+
+    return static_cast<float>(dotProduct) / (sqrt(normA) * sqrt(normB));
+}
+
+// Octal Quantization
+void octalQuantize(const std::vector<float>& input, std::vector<uint8_t>& output) {
+    size_t n = input.size();
+    output.resize((n + 1) / 2); // Each uint8_t holds 2 x 4-bit values
+    for (size_t i = 0; i < n; ++i) {
+        size_t index = i / 2;
+        uint8_t value = static_cast<uint8_t>(input[i] * 15) & 0xF; // 4-bit value
+        if (i % 2 == 0) {
+            output[index] |= (value << 4); // MSB
+        } else {
+            output[index] |= value; // LSB
+        }
+    }
+}
+
+float cosineSimilarityOctal(const std::vector<uint8_t>& A, const std::vector<uint8_t>& B, size_t n) {
+    uint32_t dotProduct = 0;
+    uint32_t normA = 0;
+    uint32_t normB = 0;
+
+    for (size_t i = 0; i < A.size(); ++i) {
+        uint8_t a = A[i];
+        uint8_t b = B[i];
+        uint8_t a1 = (a >> 4) & 0xF;
+        uint8_t a2 = a & 0xF;
+        uint8_t b1 = (b >> 4) & 0xF;
+        uint8_t b2 = b & 0xF;
+
+        dotProduct += a1 * b1 + a2 * b2;
+        normA += a1 * a1 + a2 * a2;
+        normB += b1 * b1 + b2 * b2;
+    }
+
+    return static_cast<float>(dotProduct) / (sqrt(normA) * sqrt(normB));
+}
+
+// Simple u8 Quantization
+void simpleU8Quantize(const std::vector<float>& input, std::vector<uint8_t>& output) {
+    size_t n = input.size();
+    output.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+        output[i] = static_cast<uint8_t>(input[i] * 255);
+    }
+}
+
+float cosineSimilarityU8(const std::vector<uint8_t>& A, const std::vector<uint8_t>& B) {
+    uint32_t dotProduct = 0;
+    uint32_t normA = 0;
+    uint32_t normB = 0;
+
+    for (size_t i = 0; i < A.size(); ++i) {
+        dotProduct += A[i] * B[i];
+        normA += A[i] * A[i];
+        normB += B[i] * B[i];
+    }
+
+    return static_cast<float>(dotProduct) / (sqrt(normA) * sqrt(normB));
+}
+
+// Example usage
+int main() {
+    std::vector<float> A = {0.1, 0.2, 0.3, 0.9, 0.8, 0.7, 0.4, 0.6, 0.5, 0.5};
+    std::vector<float> B = {0.2, 0.3, 0.4, 0.8, 0.7, 0.6, 0.3, 0.5, 0.4, 0.6};
+
+    // Binary Quantization
+    std::vector<uint32_t> binA, binB;
+    binaryQuantize(A, binA);
+    binaryQuantize(B, binB);
+    float cosineSimBinary = cosineSimilarityBinary(binA, binB, A.size());
+    std::cout << "Cosine Similarity (Binary): " << cosineSimBinary << std::endl;
+
+    // Octal Quantization
+    std::vector<uint8_t> octA, octB;
+    octalQuantize(A, octA);
+    octalQuantize(B, octB);
+    float cosineSimOctal = cosineSimilarityOctal(octA, octB, A.size());
+    std::cout << "Cosine Similarity (Octal): " << cosineSimOctal << std::endl;
+
+    // Simple u8 Quantization
+    std::vector<uint8_t> u8A, u8B;
+    simpleU8Quantize(A, u8A);
+    simpleU8Quantize(B, u8B);
+    float cosineSimU8 = cosineSimilarityU8(u8A, u8B);
+    std::cout << "Cosine Similarity (u8): " << cosineSimU8 << std::endl;
+
+    return 0;
+}
